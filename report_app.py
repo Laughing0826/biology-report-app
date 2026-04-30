@@ -166,11 +166,12 @@ HKDSE_BIO_CURRICULUM = {
         }
     }
 }
+HKDSE_BIO_CURRICULUM = {} 
+
 # ==========================================
 # II. Helper & Core Analysis Functions
 # ==========================================
 def load_file(uploaded_file, **kwargs):
-    """Loads CSV or XLSX files into a Pandas DataFrame."""
     if uploaded_file is None:
         return None
     ext = os.path.splitext(uploaded_file.name)[1].lower()
@@ -184,14 +185,14 @@ def load_file(uploaded_file, **kwargs):
     return None
 
 def extract_text_from_upload(uploaded_file):
-    """Safely extracts text from a Streamlit UploadedFile using a temporary file."""
+    """Safely extracts full text from a PDF with NO size limitation."""
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             temp_file.write(uploaded_file.getvalue())
             temp_path = temp_file.name
         
-        text = extract_text(temp_path)
-        os.remove(temp_path) # Clean up the temporary file
+        text = extract_text(temp_path) # Extracts the entire document without limits
+        os.remove(temp_path)
         return text
     except Exception as e:
         st.error(f"Error reading PDF: {e}")
@@ -280,6 +281,10 @@ def analyze_mcq_performance(mc_analysis_file, printable_scores_file):
             numeric_cols = df_scores.select_dtypes(include=[np.number]).columns
             if len(numeric_cols) > 0: avg_score = df_scores[numeric_cols[-1]].mean()
 
+    # Prevent nan if dataframe was empty or parsing failed
+    if pd.isna(avg_score):
+        avg_score = 0.0
+
     df_mc = load_file(mc_analysis_file)
     if df_mc is not None and not df_mc.empty:
         pct_col = next((c for c in df_mc.columns if '%' in str(c) or 'correct' in str(c).lower()), None)
@@ -301,17 +306,24 @@ def analyze_sq_performance(sq_marks_file, target_class):
     if df_sq is not None and not df_sq.empty:
         class_col = next((c for c in df_sq.columns if 'class' in str(c).lower()), None)
         if class_col:
-            df_sq = df_sq[df_sq[class_col].astype(str).str.strip().str.upper() == target_class.strip().upper()]
+            # Using str.contains for a much safer match (avoids hidden space errors)
+            target = str(target_class).strip().upper()
+            df_sq = df_sq[df_sq[class_col].astype(str).str.upper().str.contains(target, na=False)]
         
-        sq_cols = [c for c in df_sq.columns if str(c).strip().upper().startswith('SQ')]
-        if not sq_cols:
-             numeric_cols = df_sq.select_dtypes(include=[np.number]).columns
-             sq_cols = [c for c in numeric_cols if class_col and c != class_col]
-             
-        if sq_cols:
-            df_sq_numeric = df_sq[sq_cols].apply(pd.to_numeric, errors='coerce')
-            sq_averages = df_sq_numeric.mean()
-            overall_avg = sq_averages.mean()
+        if not df_sq.empty:
+            sq_cols = [c for c in df_sq.columns if str(c).strip().upper().startswith('SQ')]
+            if not sq_cols:
+                 numeric_cols = df_sq.select_dtypes(include=[np.number]).columns
+                 sq_cols = [c for c in numeric_cols if class_col and c != class_col]
+                 
+            if sq_cols:
+                df_sq_numeric = df_sq[sq_cols].apply(pd.to_numeric, errors='coerce')
+                sq_averages = df_sq_numeric.mean()
+                overall_avg = sq_averages.mean()
+    
+    # Prevent nan
+    if pd.isna(overall_avg):
+        overall_avg = 0.0
             
     return overall_avg, sq_averages
 
@@ -360,8 +372,6 @@ if 'report_generated' not in st.session_state:
 with st.sidebar:
     st.header("🔑 AI Configuration")
     gemini_api_key = st.text_input("Gemini API Key", type="password")
-    
-    st.markdown("Specify the exact model version tied to your API Key:")
     gemini_model_name = st.text_input("Model Version", value="gemini-1.5-pro", help="Change this to gemini-1.5-pro-latest, gemini-3.0-pro, etc. depending on your access.")
     
     st.header("📂 Data Upload (Max 600MB)")
