@@ -3,4 +3,4 @@ pandas
 numpy
 pdfminer.six
 openpyxl
-
+google-generativeai
