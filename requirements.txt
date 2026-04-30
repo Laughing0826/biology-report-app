@@ -2,3 +2,5 @@ streamlit
 pandas
 numpy
 pdfminer.six
+openpyxl
+
