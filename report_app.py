@@ -166,9 +166,6 @@ HKDSE_BIO_CURRICULUM = {
         }
     }
 }
-
-HKDSE_BIO_CURRICULUM = {} # Placeholder
-
 # ==========================================
 # II. Helper & Core Analysis Functions
 # ==========================================
@@ -186,20 +183,30 @@ def load_file(uploaded_file, **kwargs):
         st.error(f"Error loading {uploaded_file.name}: {e}")
     return None
 
-def analyze_curriculum_coverage_with_gemini(pdf_file, curriculum_db, api_key):
-    """Uses Gemini to "read" the PDF and map it to the HKDSE Curriculum."""
-    if not api_key:
-        return "⚠️ **Gemini API Key is missing.** Please enter your API key in the sidebar."
-    if pdf_file is None:
-        return "⚠️ **No Question Paper uploaded.** Upload a PDF to analyze curriculum coverage."
+def extract_text_from_upload(uploaded_file):
+    """Safely extracts text from a Streamlit UploadedFile using a temporary file."""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            temp_file.write(uploaded_file.getvalue())
+            temp_path = temp_file.name
+        
+        text = extract_text(temp_path)
+        os.remove(temp_path) # Clean up the temporary file
+        return text
+    except Exception as e:
+        st.error(f"Error reading PDF: {e}")
+        return ""
+
+def analyze_curriculum_coverage_with_gemini(pdf_file, curriculum_db, api_key, model_name):
+    if not api_key: return "⚠️ **Gemini API Key is missing.**"
+    if pdf_file is None: return "⚠️ **No Question Paper uploaded.**"
     
     try:
-        extracted_text = extract_text(pdf_file)
-        if not extracted_text.strip():
-            return "Could not extract text from the PDF. Please ensure it is a text-searchable PDF."
+        extracted_text = extract_text_from_upload(pdf_file)
+        if not extracted_text.strip(): return "Could not extract text from the PDF. Ensure it is text-searchable."
 
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(model_name)
         
         prompt = f"""
         You are an expert high school Biology teacher specializing in the HKDSE Biology curriculum.
@@ -211,37 +218,30 @@ def analyze_curriculum_coverage_with_gemini(pdf_file, curriculum_db, api_key):
         1. Read the test questions and map them to the provided curriculum database.
         2. Output a beautifully formatted markdown report showing the coverage. Use headings for Major Areas and bullet points for Sub-topics.
         3. Under each detected sub-topic, add a brief 1-sentence note indicating WHICH question or concept from the test paper proves this topic is being assessed.
-        4. Be analytical. If a topic is completely absent from the paper, do not include it in your output report.
         
         Curriculum Framework:
         {json.dumps(curriculum_db, indent=2)}
         
         Test Paper Text:
         ---
-        {extracted_text[:25000]}
+        {extracted_text}
         ---
         """
-        
         response = model.generate_content(prompt)
         return response.text
-        
     except Exception as e:
-        return f"❌ **Error connecting to Gemini API:** {str(e)}"
+        return f"❌ **Error connecting to Gemini API ({model_name}):** {str(e)}"
 
-def analyze_student_mistakes_with_gemini(student_work_pdf, api_key):
-    """Uses Gemini to analyze uploaded student work and identify common mistakes."""
-    if not api_key:
-        return "⚠️ **Gemini API Key is missing.**"
-    if student_work_pdf is None:
-        return "No student work uploaded."
+def analyze_student_mistakes_with_gemini(student_work_pdf, api_key, model_name):
+    if not api_key: return "⚠️ **Gemini API Key is missing.**"
+    if student_work_pdf is None: return "No student work uploaded."
         
     try:
-        extracted_text = extract_text(student_work_pdf)
-        if not extracted_text.strip():
-            return "Could not extract text from the Student Work PDF. Please ensure it is text-searchable or contains readable handwriting OCR."
+        extracted_text = extract_text_from_upload(student_work_pdf)
+        if not extracted_text.strip(): return "Could not extract text from the Student Work PDF."
 
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(model_name)
         
         prompt = f"""
         You are an expert high school Biology teacher marking a batch of student test papers. 
@@ -251,44 +251,39 @@ def analyze_student_mistakes_with_gemini(student_work_pdf, api_key):
         
         Instructions:
         1. Identify recurring factual errors, logical fallacies, or biological misconceptions.
-        2. Point out areas where students failed to use precise biological terminology (e.g., using "melt" instead of "denature" for enzymes).
+        2. Point out areas where students failed to use precise biological terminology.
         3. Format your output using clear markdown with the following sections:
-           - 🔴 **Major Misconceptions**: Core misunderstandings of biological concepts.
-           - 📝 **Terminology Errors**: Missing or incorrectly used keywords.
-           - 💡 **Actionable Advice**: How the teacher can address these specific issues in the next lesson.
+           - 🔴 **Major Misconceptions**
+           - 📝 **Terminology Errors**
+           - 💡 **Actionable Advice**
         
         Student Responses Text:
         ---
-        {extracted_text[:25000]}
+        {extracted_text}
         ---
         """
-        
         response = model.generate_content(prompt)
         return response.text
-        
     except Exception as e:
-        return f"❌ **Error connecting to Gemini API:** {str(e)}"
+        return f"❌ **Error connecting to Gemini API ({model_name}):** {str(e)}"
 
 def analyze_mcq_performance(mc_analysis_file, printable_scores_file):
-    """Analyzes MCQ average and identifies the 3 most difficult questions."""
     avg_score = 0.0
     difficult_qs = pd.DataFrame()
     
     df_scores = load_file(printable_scores_file)
     if df_scores is not None and not df_scores.empty:
-        score_cols = [c for c in df_scores.columns if 'score' in str(c).lower() or 'total' in str(c).lower() or 'mark' in str(c).lower()]
+        score_cols = [c for c in df_scores.columns if 'score' in str(c).lower() or 'total' in str(c).lower()]
         if score_cols:
             avg_score = pd.to_numeric(df_scores[score_cols[0]], errors='coerce').mean()
         else:
             numeric_cols = df_scores.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) > 0:
-                avg_score = df_scores[numeric_cols[-1]].mean()
+            if len(numeric_cols) > 0: avg_score = df_scores[numeric_cols[-1]].mean()
 
     df_mc = load_file(mc_analysis_file)
     if df_mc is not None and not df_mc.empty:
         pct_col = next((c for c in df_mc.columns if '%' in str(c) or 'correct' in str(c).lower()), None)
         q_col = next((c for c in df_mc.columns if 'question' in str(c).lower() or 'item' in str(c).lower()), None)
-        
         if pct_col is None and len(df_mc.columns) >= 2: pct_col = df_mc.columns[1]
         if q_col is None and len(df_mc.columns) >= 1: q_col = df_mc.columns[0]
         
@@ -299,7 +294,6 @@ def analyze_mcq_performance(mc_analysis_file, printable_scores_file):
     return avg_score, difficult_qs
 
 def analyze_sq_performance(sq_marks_file, target_class):
-    """Filters SQ marks by target class and calculates averages."""
     overall_avg = 0.0
     sq_averages = pd.Series(dtype=float)
     
@@ -321,37 +315,32 @@ def analyze_sq_performance(sq_marks_file, target_class):
             
     return overall_avg, sq_averages
 
-def generate_gemini_teacher_comment(mcq_avg, diff_qs, sq_overall, sq_avg, target_class, api_key):
-    """Generates a teacher's comment using the Gemini API based on performance data."""
-    if not api_key:
-        return "⚠️ **Gemini API Key is missing.**"
+def generate_gemini_teacher_comment(mcq_avg, diff_qs, sq_overall, sq_avg, target_class, api_key, model_name):
+    if not api_key: return "⚠️ **Gemini API Key is missing.**"
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        model = genai.GenerativeModel(model_name) 
         
         diff_qs_str = ", ".join(diff_qs.iloc[:, 0].astype(str).tolist()) if not diff_qs.empty else "N/A"
         sq_breakdown = ", ".join([f"{idx}: {val:.1f}%" for idx, val in sq_avg.items()]) if not sq_avg.empty else "N/A"
         
         prompt = f"""
         You are an expert high school Biology teacher writing a professional, encouraging, yet analytical post-test report for a class.
-        
-        Here is the performance data for Class {target_class}:
-        - Overall Multiple Choice (MCQ) Average: {mcq_avg:.1f}%
-        - Most difficult MCQ questions (lowest correct percentage): {diff_qs_str}
-        - Overall Structured Question (SQ) Average: {sq_overall:.1f}%
+        Performance data for Class {target_class}:
+        - Overall MCQ Average: {mcq_avg:.1f}%
+        - Most difficult MCQ questions: {diff_qs_str}
+        - Overall SQ Average: {sq_overall:.1f}%
         - Breakdown of SQ averages: {sq_breakdown}
         
-        Write a concise, 3-paragraph report summarizing this data. Highlight the strengths, clearly point out the specific weak areas based on the lowest-scoring SQs, and provide actionable advice for remediation. Output the report directly in markdown.
+        Write a concise, 3-paragraph report summarizing this data. Highlight strengths, weak areas, and provide actionable advice. Output directly in markdown.
         """
-        
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"❌ **Error connecting to Gemini API:** {str(e)}"
+        return f"❌ **Error connecting to Gemini API ({model_name}):** {str(e)}"
 
 def display_pdf(pdf_file):
-    """Encodes PDF to Base64 and embeds it in an HTML iframe."""
     if pdf_file is not None:
         base64_pdf = base64.b64encode(pdf_file.getvalue()).decode('utf-8')
         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
@@ -362,19 +351,20 @@ def display_pdf(pdf_file):
 # ==========================================
 # III. User Interface (UI) and Layout
 # ==========================================
-
 st.set_page_config(page_title="Biology Report Generator", page_icon="🔬", layout="wide")
-st.title("🔬 AI-Powered S3-S6 Biology Test Analysis")
+st.title("🔬 AI-Powered Biology Test Analysis")
 
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 
-# Sidebar
 with st.sidebar:
     st.header("🔑 AI Configuration")
-    gemini_api_key = st.text_input("Gemini API Key", type="password", help="Get your API key from Google AI Studio.")
+    gemini_api_key = st.text_input("Gemini API Key", type="password")
     
-    st.header("📂 Data Upload")
+    st.markdown("Specify the exact model version tied to your API Key:")
+    gemini_model_name = st.text_input("Model Version", value="gemini-1.5-pro", help="Change this to gemini-1.5-pro-latest, gemini-3.0-pro, etc. depending on your access.")
+    
+    st.header("📂 Data Upload (Max 600MB)")
     qp_pdf = st.file_uploader("Question Paper (PDF) - For AI Mapping", type=["pdf"])
     ms_pdf = st.file_uploader("Marking Scheme (PDF)", type=["pdf"])
     
@@ -384,8 +374,8 @@ with st.sidebar:
     sq_marks_file = st.file_uploader("SQ Marks (CSV/XLSX)", type=["csv", "xlsx"])
     
     st.divider()
-    st.header("📝 Student Work Analysis (Optional)")
-    student_work_pdf = st.file_uploader("Student Work Samples (PDF)", type=["pdf"], help="Upload scanned student answers to have AI spot common misconceptions and terminology errors.")
+    st.header("📝 Student Work Analysis")
+    student_work_pdf = st.file_uploader("Student Work Samples (PDF)", type=["pdf"])
 
     st.divider()
     target_class = st.text_input("Target Class", value="4R")
@@ -393,109 +383,55 @@ with st.sidebar:
     if st.button("Generate AI Report", type="primary", use_container_width=True):
         st.session_state.report_generated = True
         
-        with st.spinner("Executing Gemini AI Analysis... (This may take a few seconds)"):
-            
-            # 1. Native Gemini PDF Curriculum Analysis
-            st.session_state.curriculum_report = analyze_curriculum_coverage_with_gemini(
-                qp_pdf, HKDSE_BIO_CURRICULUM, gemini_api_key
-            )
-            
-            # 2. Data Processing
+        with st.spinner(f"Executing {gemini_model_name} AI Analysis (This may take a minute for large files)..."):
+            st.session_state.curriculum_report = analyze_curriculum_coverage_with_gemini(qp_pdf, HKDSE_BIO_CURRICULUM, gemini_api_key, gemini_model_name)
             st.session_state.mcq_avg, st.session_state.difficult_qs = analyze_mcq_performance(mc_analysis_file, printable_scores_file)
             st.session_state.sq_overall, st.session_state.sq_avg = analyze_sq_performance(sq_marks_file, target_class)
             
-            # 3. Gemini Teacher Comment Generation
             st.session_state.teacher_comment = generate_gemini_teacher_comment(
-                st.session_state.mcq_avg, 
-                st.session_state.difficult_qs, 
-                st.session_state.sq_overall, 
-                st.session_state.sq_avg, 
-                target_class,
-                gemini_api_key
+                st.session_state.mcq_avg, st.session_state.difficult_qs, st.session_state.sq_overall, 
+                st.session_state.sq_avg, target_class, gemini_api_key, gemini_model_name
             )
-            
-            # 4. Gemini Student Work Analysis (if provided)
             if student_work_pdf is not None:
-                st.session_state.student_mistakes_report = analyze_student_mistakes_with_gemini(
-                    student_work_pdf, gemini_api_key
-                )
+                st.session_state.student_mistakes_report = analyze_student_mistakes_with_gemini(student_work_pdf, gemini_api_key, gemini_model_name)
             else:
                 st.session_state.student_mistakes_report = None
 
-# Main Page Layout (Tabs)
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Performance Dashboard", 
-    "📜 AI Curriculum Mapping", 
-    "✨ AI Teacher's Comment", 
-    "🚨 Common Mistakes",
-    "📚 Source Documents"
+    "📊 Dashboard", "📜 Curriculum Mapping", "✨ Teacher's Comment", "🚨 Common Mistakes", "📚 Documents"
 ])
 
 if st.session_state.report_generated:
-    
-    # --- Tab 1: Performance Dashboard ---
     with tab1:
-        st.header(f"Class {target_class} Performance Dashboard")
+        st.header(f"Class {target_class} Dashboard")
         col1, col2 = st.columns(2)
-        
         with col1:
-            st.subheader("Multiple Choice Questions (MCQ)")
-            st.metric("Overall Average Score", f"{st.session_state.mcq_avg:.2f}%")
-            st.write("Most Difficult Questions (Lowest Correct %):")
-            if not st.session_state.difficult_qs.empty:
-                st.dataframe(st.session_state.difficult_qs, use_container_width=True, hide_index=True)
-            else:
-                st.info("MCQ data unavailable. Please upload files.")
-                
+            st.subheader("Multiple Choice")
+            st.metric("Overall Average", f"{st.session_state.mcq_avg:.2f}%")
+            if not st.session_state.difficult_qs.empty: st.dataframe(st.session_state.difficult_qs, hide_index=True)
         with col2:
-            st.subheader("Structured Questions (SQ)")
-            st.metric("Overall SQ Average", f"{st.session_state.sq_overall:.2f}%")
-            st.write("Average Score per Question:")
-            if not st.session_state.sq_avg.empty:
-                st.bar_chart(st.session_state.sq_avg)
-            else:
-                st.info("SQ data unavailable. Please upload files.")
+            st.subheader("Structured Questions")
+            st.metric("Overall Average", f"{st.session_state.sq_overall:.2f}%")
+            if not st.session_state.sq_avg.empty: st.bar_chart(st.session_state.sq_avg)
 
-    # --- Tab 2: AI Curriculum Mapping ---
     with tab2:
-        st.header("Gemini Curriculum Coverage Analysis")
-        st.info("This breakdown is dynamically generated by Gemini reading the uploaded PDF against the HKDSE Biology curriculum.")
         st.markdown(st.session_state.curriculum_report)
 
-    # --- Tab 3: AI Teacher's Comment ---
     with tab3:
-        st.header("Gemini-Generated Narrative Report")
         st.markdown(st.session_state.teacher_comment)
-        
-        with st.expander("Copy Raw Text"):
-            st.text_area("Teacher's Comment", st.session_state.teacher_comment, height=250, label_visibility="hidden")
 
-    # --- Tab 4: Common Mistakes ---
     with tab4:
-        st.header("Student Work Analysis: Common Mistakes & Misconceptions")
-        if st.session_state.student_mistakes_report:
-            st.markdown(st.session_state.student_mistakes_report)
-            with st.expander("Copy Raw Text"):
-                st.text_area("Mistakes Report", st.session_state.student_mistakes_report, height=250, label_visibility="hidden")
-        else:
-            st.info("No Student Work PDF was uploaded for analysis. Upload a file in the sidebar and re-run the report to see insights here.")
-
+        if st.session_state.student_mistakes_report: st.markdown(st.session_state.student_mistakes_report)
+        else: st.info("No Student Work PDF was uploaded.")
 else:
     for tab in [tab1, tab2, tab3, tab4]:
-        with tab:
-            st.info("👈 Please enter your **Gemini API key**, upload the required files in the sidebar, and click **Generate AI Report**.")
+        with tab: st.info("Please enter your API key, configure the model, upload files, and click Generate Report.")
 
-# --- Tab 5: Source Documents ---
 with tab5:
-    st.header("Document Viewer")
     doc_col1, doc_col2 = st.columns(2)
-    
     with doc_col1:
         st.subheader("Question Paper")
         if qp_pdf: display_pdf(qp_pdf)
-        else: st.info("Upload a Question Paper PDF in the sidebar.")
-            
     with doc_col2:
         st.subheader("Marking Scheme")
         if ms_pdf: display_pdf(ms_pdf)
-        else: st.info("Upload a Marking Scheme PDF in the sidebar.")
