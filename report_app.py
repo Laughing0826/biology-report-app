@@ -7,44 +7,147 @@ import google.generativeai as genai
 from pdfminer.high_level import extract_text
 
 # ==========================================
-# I. Curriculum Knowledge Base
+# I. Curriculum Knowledge Base (Expanded)
 # ==========================================
+# This acts as the reference framework for Gemini to map the questions against.
 HKDSE_BIO_CURRICULUM = {
     "Compulsory Part": {
         "I. Cells and Molecules of Life": {
             "a. Molecules of life": {
-                "keywords": ["carbohydrate", "lipid", "protein", "nucleic acid", "monosaccharide", "amino acid", "fatty acid", "enzyme"],
+                "keywords": ["carbohydrate", "lipid", "protein", "nucleic acid", "monosaccharide", "amino acid", "fatty acid", "enzyme", "water", "inorganic ion"],
                 "objectives": ["State the elemental composition of carbohydrates, lipids and proteins.", "Describe the basic units of carbohydrates, lipids and proteins.", "Describe the occurrence and functions of sugars, lipids, proteins, vitamins and minerals."]
             },
             "b. Cellular organisation": {
-                "keywords": ["cell wall", "cell membrane", "cytoplasm", "vacuole", "nucleus", "chloroplast", "mitochondrion", "organelle"],
-                "objectives": ["Identify cell structures of typical animal and plant cells.", "State the functions of the organelles.", "Compare the structures of animal and plant cells."]
+                "keywords": ["cell wall", "cell membrane", "cytoplasm", "vacuole", "nucleus", "chloroplast", "mitochondrion", "organelle", "prokaryotic", "eukaryotic"],
+                "objectives": ["Identify cell structures of typical animal and plant cells.", "State the functions of the organelles.", "Compare the structures of animal and plant cells.", "Compare prokaryotic and eukaryotic cells."]
             },
             "c. Movement of substances across membrane": {
-                "keywords": ["diffusion", "osmosis", "active transport", "cell membrane", "water potential", "surface area to volume ratio"],
+                "keywords": ["diffusion", "osmosis", "active transport", "cell membrane", "water potential", "plasmolysis", "haemolysis", "phagocytosis"],
                 "objectives": ["Describe the fluid mosaic model of cell membrane.", "Explain the movement of substances across the cell membrane.", "Describe the effects of osmosis on animal and plant cells."]
             },
-            "d. Cell cycle and cell division": {
-                "keywords": ["mitosis", "meiosis", "cell cycle", "chromosome", "homologous chromosomes"],
-                "objectives": ["Describe the cell cycle.", "Describe the events in different stages of mitosis.", "State the significance of mitosis.", "Describe the events in different stages of meiosis.", "State the significance of meiosis."]
+            "d. Cell cycle and division": {
+                "keywords": ["mitosis", "meiosis", "cell cycle", "chromosome", "homologous chromosomes", "nuclear division", "cytoplasmic division"],
+                "objectives": ["Describe the cell cycle.", "Outline and compare the processes of mitosis and meiosis.", "State the significance of mitosis and meiosis."]
             },
             "e. Cellular energetics": {
-                "keywords": ["metabolism", "enzymes", "photosynthesis", "cellular respiration", "ATP"],
-                "objectives": ["Explain metabolism in terms of catabolism and anabolism.", "Explain the functions of enzymes.", "State the summary equation of photosynthesis.", "State the summary equation for cellular respiration."]
+                "keywords": ["metabolism", "catabolism", "anabolism", "enzymes", "active site", "photosynthesis", "cellular respiration", "ATP", "glycolysis", "Krebs cycle", "Calvin cycle"],
+                "objectives": ["Explain metabolism in terms of catabolism and anabolism.", "Explain the functions of enzymes.", "Outline the major steps of photosynthesis and cellular respiration."]
             }
         },
         "II. Genetics and Evolution": {
             "a. Basic genetics": {
-                "keywords": ["gene", "allele", "locus", "genotype", "phenotype", "dominant", "recessive", "homozygous", "heterozygous", "monohybrid", "dihybrid", "codominance", "sex linkage"],
-                "objectives": ["Define and use the terms in basic genetics.", "Construct and interpret genetic diagrams.", "Explain codominance and multiple alleles with the ABO blood groups as an example."]
+                "keywords": ["gene", "allele", "locus", "genotype", "phenotype", "dominant", "recessive", "homozygous", "heterozygous", "monohybrid", "pedigree", "codominance", "sex linkage"],
+                "objectives": ["Understand the law of segregation and independent assortment.", "Construct and interpret genetic diagrams and pedigrees.", "Understand the inheritance of ABO blood groups and sex-linked traits."]
             },
             "b. Molecular genetics": {
-                "keywords": ["DNA", "gene", "genetic code", "protein synthesis", "genetically modified (GM)"],
-                "objectives": ["Describe the relationship between DNA, genes and chromosomes.", "Describe the basic process of protein synthesis.", "State the applications and implications of genetic engineering."]
+                "keywords": ["DNA", "RNA", "genetic code", "transcription", "translation", "protein synthesis", "mutation", "recombinant DNA", "DNA fingerprinting", "Human Genome Project"],
+                "objectives": ["Describe the relationship between DNA, genes and chromosomes.", "Outline the process of protein synthesis.", "Recognise the applications of recombinant DNA technology and DNA fingerprinting."]
             },
-            "c. Evolution": {
-                "keywords": ["fossil", "natural selection", "Darwin", "Lamarck", "speciation", "evolution"],
-                "objectives": ["Interpret the evidence for evolution.", "Describe the theory of natural selection.", "Explain the role of natural selection in evolution."]
+            "c. Biodiversity and evolution": {
+                "keywords": ["fossil", "natural selection", "Darwin", "speciation", "evolution", "classification", "binomial nomenclature", "dichotomous key", "domains", "kingdoms"],
+                "objectives": ["Classify organisms and use dichotomous keys.", "Outline the mechanism of evolution.", "Interpret the evidence for evolution including fossil records."]
+            }
+        },
+        "III. Organisms and Environment": {
+            "a. Essential life processes in plants": {
+                "keywords": ["autotroph", "root", "leaf", "gas exchange", "transpiration", "xylem", "phloem", "transport", "minerals", "water absorption"],
+                "objectives": ["Understand plant nutrition and the need for minerals.", "Relate structures of roots and leaves to their functions.", "Explain gas exchange and transport in plants."]
+            },
+            "b. Essential life processes in animals": {
+                "keywords": ["heterotroph", "digestion", "absorption", "assimilation", "alimentary canal", "dentition", "gas exchange", "air sacs", "circulatory system", "blood", "lymphatic system"],
+                "objectives": ["Understand human nutrition and a balanced diet.", "Relate structures of the digestive, breathing, and circulatory systems to their functions."]
+            },
+            "c. Reproduction, growth and development": {
+                "keywords": ["asexual reproduction", "sexual reproduction", "pollination", "fertilisation", "seed", "fruit", "sperm", "ovum", "menstrual cycle", "placenta", "growth curve"],
+                "objectives": ["Discuss the significance of asexual and sexual reproduction.", "Outline reproduction in flowering plants and humans.", "Understand the roles of the placenta and parental care."]
+            },
+            "d. Coordination and response": {
+                "keywords": ["stimulus", "receptor", "eye", "nervous system", "brain", "spinal cord", "neuron", "reflex action", "endocrine system", "hormone", "phototropism", "auxin"],
+                "objectives": ["Understand the roles of sense organs, specifically the human eye.", "Compare nervous and hormonal coordination.", "Explain phototropism in plants."]
+            },
+            "e. Homeostasis": {
+                "keywords": ["homeostasis", "negative feedback", "blood glucose", "insulin", "glucagon"],
+                "objectives": ["Understand the concept of homeostasis.", "Explain the regulation of blood glucose level."]
+            },
+            "f. Ecosystems": {
+                "keywords": ["abiotic", "biotic", "trophic level", "food chain", "food web", "energy flow", "carbon cycle", "nitrogen cycle", "ecological succession", "conservation"],
+                "objectives": ["Understand the components of an ecosystem.", "Describe energy flow and material cycling in an ecosystem.", "Appreciate the need for conservation."]
+            }
+        },
+        "IV. Health and Diseases": {
+            "a. Personal health": {
+                "keywords": ["health", "balanced diet", "exercise", "healthy lifestyle"],
+                "objectives": ["Understand the meaning of health.", "Explain the relationship between health and lifestyle."]
+            },
+            "b. Diseases": {
+                "keywords": ["infectious", "non-infectious", "pathogen", "virus", "bacteria", "transmission", "antibiotics", "vector"],
+                "objectives": ["Distinguish between infectious and non-infectious diseases.", "Understand the transmission of diseases and the use of antibiotics."]
+            },
+            "c. Body defence mechanisms": {
+                "keywords": ["physical barrier", "phagocytosis", "inflammatory response", "immune response", "antigen", "antibody", "lymphocyte", "vaccination", "immunity"],
+                "objectives": ["Explain non-specific and specific defence mechanisms.", "Understand the principles of vaccination and immunity."]
+            }
+        }
+    },
+    "Elective Part": {
+        "V. Human Physiology: Regulation and Control": {
+            "a. Regulation of water content": {
+                "keywords": ["osmoregulation", "kidney", "nephron", "ultrafiltration", "reabsorption", "ADH", "urine"],
+                "objectives": ["Explain the regulation of water content in the blood.", "Relate the structure of the kidney and nephron to their functions."]
+            },
+            "b. Regulation of body temperature": {
+                "keywords": ["temperature regulation", "skin", "hypothalamus", "vasodilation", "vasoconstriction", "sweating", "shivering"],
+                "objectives": ["Explain the mechanisms of regulating body temperature in hot and cold environments."]
+            },
+            "c. Regulation of gas in blood": {
+                "keywords": ["breathing rate", "chemoreceptor", "medulla oblongata", "carbon dioxide concentration"],
+                "objectives": ["Explain the regulation of breathing rate during exercise."]
+            },
+            "d. Hormonal control of reproductive cycle": {
+                "keywords": ["FSH", "LH", "oestrogen", "progesterone", "ovary", "uterus", "menstrual cycle"],
+                "objectives": ["Explain the hormonal control of the menstrual cycle using the concept of negative feedback."]
+            }
+        },
+        "VI. Applied Ecology": {
+            "a. Human impact on the environment": {
+                "keywords": ["pollution", "global warming", "greenhouse effect", "acid rain", "eutrophication", "deforestation", "algal bloom"],
+                "objectives": ["Understand the causes and effects of various types of environmental pollution."]
+            },
+            "b. Pollution control": {
+                "keywords": ["sewage treatment", "solid waste management", "landfill", "incineration", "recycling"],
+                "objectives": ["Understand the principles of sewage treatment and solid waste management."]
+            },
+            "c. Conservation": {
+                "keywords": ["biodiversity", "endangered species", "sustainable development", "ecological footprint"],
+                "objectives": ["Appreciate the need for conservation and sustainable development."]
+            }
+        },
+        "VII. Microorganisms and Humans": {
+            "a. Microbiology": {
+                "keywords": ["bacteria", "fungi", "virus", "culture", "aseptic technique", "growth curve", "lag phase", "log phase", "stationary phase"],
+                "objectives": ["Understand the basic structure of microorganisms and their growth requirements.", "Apply aseptic techniques in culturing microorganisms."]
+            },
+            "b. Use of microorganisms": {
+                "keywords": ["biotechnology", "brewing", "baking", "yoghurt", "biogas", "recombinant DNA"],
+                "objectives": ["Understand the applications of microorganisms in the food industry and biotechnology."]
+            },
+            "c. Microorganisms and diseases": {
+                "keywords": ["pathogen", "infection", "transmission", "food preservation", "food spoilage"],
+                "objectives": ["Explain the role of microorganisms in causing diseases and food spoilage.", "Understand the principles of food preservation."]
+            }
+        },
+        "VIII. Biotechnology": {
+            "a. Recombinant DNA technology": {
+                "keywords": ["restriction enzyme", "DNA ligase", "plasmid", "vector", "transgenic", "transformation"],
+                "objectives": ["Describe the basic principles of recombinant DNA technology."]
+            },
+            "b. Applications in medicine and agriculture": {
+                "keywords": ["gene therapy", "stem cell", "cloning", "GMO", "GM food", "insulin production"],
+                "objectives": ["Understand the applications of biotechnology in medicine and agriculture."]
+            },
+            "c. Bioethics": {
+                "keywords": ["ethics", "moral", "cloning", "GM crops", "safety", "patent", "human rights"],
+                "objectives": ["Discuss the ethical, legal, social, economic, and environmental implications of biotechnology."]
             }
         }
     },
@@ -64,6 +167,8 @@ HKDSE_BIO_CURRICULUM = {
     }
 }
 
+HKDSE_BIO_CURRICULUM = {} # Placeholder
+
 # ==========================================
 # II. Helper & Core Analysis Functions
 # ==========================================
@@ -81,32 +186,88 @@ def load_file(uploaded_file, **kwargs):
         st.error(f"Error loading {uploaded_file.name}: {e}")
     return None
 
-def analyze_curriculum_coverage(pdf_file, curriculum_db):
-    """Extracts text from PDF and maps it to curriculum sub-topics."""
+def analyze_curriculum_coverage_with_gemini(pdf_file, curriculum_db, api_key):
+    """Uses Gemini to "read" the PDF and map it to the HKDSE Curriculum."""
+    if not api_key:
+        return "⚠️ **Gemini API Key is missing.** Please enter your API key in the sidebar."
     if pdf_file is None:
-        return {}
+        return "⚠️ **No Question Paper uploaded.** Upload a PDF to analyze curriculum coverage."
     
     try:
-        extracted_text = extract_text(pdf_file).lower()
-    except Exception as e:
-        st.error(f"Error extracting text from PDF: {e}")
-        return {}
+        extracted_text = extract_text(pdf_file)
+        if not extracted_text.strip():
+            return "Could not extract text from the PDF. Please ensure it is a text-searchable PDF."
 
-    detected_subtopics = {}
-    for major_area, topics in curriculum_db.items():
-        if isinstance(topics, dict):
-            for topic, subtopics in topics.items():
-                if isinstance(subtopics, dict) and 'keywords' not in subtopics:
-                    for subtopic, data in subtopics.items():
-                        keywords = data.get('keywords', [])
-                        if any(kw.lower() in extracted_text for kw in keywords):
-                            detected_subtopics[subtopic] = data.get('objectives', [])
-                elif 'keywords' in subtopics:
-                    keywords = subtopics.get('keywords', [])
-                    if any(kw.lower() in extracted_text for kw in keywords):
-                        detected_subtopics[topic] = subtopics.get('objectives', [])
-    
-    return detected_subtopics
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        You are an expert high school Biology teacher specializing in the HKDSE Biology curriculum.
+        Below is the text from a Biology test/question paper, followed by the official HKDSE Biology curriculum framework.
+        
+        Your task is to analyze the test paper and determine exactly which curriculum topics and sub-topics are being assessed.
+        
+        Instructions:
+        1. Read the test questions and map them to the provided curriculum database.
+        2. Output a beautifully formatted markdown report showing the coverage. Use headings for Major Areas and bullet points for Sub-topics.
+        3. Under each detected sub-topic, add a brief 1-sentence note indicating WHICH question or concept from the test paper proves this topic is being assessed.
+        4. Be analytical. If a topic is completely absent from the paper, do not include it in your output report.
+        
+        Curriculum Framework:
+        {json.dumps(curriculum_db, indent=2)}
+        
+        Test Paper Text:
+        ---
+        {extracted_text[:25000]}
+        ---
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text
+        
+    except Exception as e:
+        return f"❌ **Error connecting to Gemini API:** {str(e)}"
+
+def analyze_student_mistakes_with_gemini(student_work_pdf, api_key):
+    """Uses Gemini to analyze uploaded student work and identify common mistakes."""
+    if not api_key:
+        return "⚠️ **Gemini API Key is missing.**"
+    if student_work_pdf is None:
+        return "No student work uploaded."
+        
+    try:
+        extracted_text = extract_text(student_work_pdf)
+        if not extracted_text.strip():
+            return "Could not extract text from the Student Work PDF. Please ensure it is text-searchable or contains readable handwriting OCR."
+
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        You are an expert high school Biology teacher marking a batch of student test papers. 
+        Below is a transcript of various students' answers from a recent test.
+        
+        Your task is to analyze these responses and create a "Common Mistakes & Misconceptions" report for the teacher.
+        
+        Instructions:
+        1. Identify recurring factual errors, logical fallacies, or biological misconceptions.
+        2. Point out areas where students failed to use precise biological terminology (e.g., using "melt" instead of "denature" for enzymes).
+        3. Format your output using clear markdown with the following sections:
+           - 🔴 **Major Misconceptions**: Core misunderstandings of biological concepts.
+           - 📝 **Terminology Errors**: Missing or incorrectly used keywords.
+           - 💡 **Actionable Advice**: How the teacher can address these specific issues in the next lesson.
+        
+        Student Responses Text:
+        ---
+        {extracted_text[:25000]}
+        ---
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text
+        
+    except Exception as e:
+        return f"❌ **Error connecting to Gemini API:** {str(e)}"
 
 def analyze_mcq_performance(mc_analysis_file, printable_scores_file):
     """Analyzes MCQ average and identifies the 3 most difficult questions."""
@@ -163,14 +324,12 @@ def analyze_sq_performance(sq_marks_file, target_class):
 def generate_gemini_teacher_comment(mcq_avg, diff_qs, sq_overall, sq_avg, target_class, api_key):
     """Generates a teacher's comment using the Gemini API based on performance data."""
     if not api_key:
-        return "⚠️ **Gemini API Key is missing.** Please enter your API key in the sidebar to generate the AI narrative report."
+        return "⚠️ **Gemini API Key is missing.**"
     
     try:
         genai.configure(api_key=api_key)
-        # Using gemini-1.5-flash for fast, reliable text generation
         model = genai.GenerativeModel('gemini-1.5-flash') 
         
-        # Format the data for the prompt
         diff_qs_str = ", ".join(diff_qs.iloc[:, 0].astype(str).tolist()) if not diff_qs.empty else "N/A"
         sq_breakdown = ", ".join([f"{idx}: {val:.1f}%" for idx, val in sq_avg.items()]) if not sq_avg.empty else "N/A"
         
@@ -183,12 +342,11 @@ def generate_gemini_teacher_comment(mcq_avg, diff_qs, sq_overall, sq_avg, target
         - Overall Structured Question (SQ) Average: {sq_overall:.1f}%
         - Breakdown of SQ averages: {sq_breakdown}
         
-        Write a concise, 3-paragraph report summarizing this data. Highlight the strengths, clearly point out the specific weak areas based on the difficult MCQs and lowest-scoring SQs, and provide actionable advice for remediation. Do not use filler introductions like "Here is the report". Output the report directly.
+        Write a concise, 3-paragraph report summarizing this data. Highlight the strengths, clearly point out the specific weak areas based on the lowest-scoring SQs, and provide actionable advice for remediation. Output the report directly in markdown.
         """
         
         response = model.generate_content(prompt)
         return response.text
-        
     except Exception as e:
         return f"❌ **Error connecting to Gemini API:** {str(e)}"
 
@@ -211,13 +369,13 @@ st.title("🔬 AI-Powered S3-S6 Biology Test Analysis")
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 
-# 2. Sidebar
+# Sidebar
 with st.sidebar:
     st.header("🔑 AI Configuration")
     gemini_api_key = st.text_input("Gemini API Key", type="password", help="Get your API key from Google AI Studio.")
     
     st.header("📂 Data Upload")
-    qp_pdf = st.file_uploader("Question Paper (PDF)", type=["pdf"])
+    qp_pdf = st.file_uploader("Question Paper (PDF) - For AI Mapping", type=["pdf"])
     ms_pdf = st.file_uploader("Marking Scheme (PDF)", type=["pdf"])
     
     st.divider()
@@ -226,17 +384,27 @@ with st.sidebar:
     sq_marks_file = st.file_uploader("SQ Marks (CSV/XLSX)", type=["csv", "xlsx"])
     
     st.divider()
+    st.header("📝 Student Work Analysis (Optional)")
+    student_work_pdf = st.file_uploader("Student Work Samples (PDF)", type=["pdf"], help="Upload scanned student answers to have AI spot common misconceptions and terminology errors.")
+
+    st.divider()
     target_class = st.text_input("Target Class", value="4R")
     
-    if st.button("Generate Report", type="primary", use_container_width=True):
+    if st.button("Generate AI Report", type="primary", use_container_width=True):
         st.session_state.report_generated = True
         
-        with st.spinner("Processing data and generating AI insights..."):
-            st.session_state.detected_subtopics = analyze_curriculum_coverage(qp_pdf, HKDSE_BIO_CURRICULUM)
+        with st.spinner("Executing Gemini AI Analysis... (This may take a few seconds)"):
+            
+            # 1. Native Gemini PDF Curriculum Analysis
+            st.session_state.curriculum_report = analyze_curriculum_coverage_with_gemini(
+                qp_pdf, HKDSE_BIO_CURRICULUM, gemini_api_key
+            )
+            
+            # 2. Data Processing
             st.session_state.mcq_avg, st.session_state.difficult_qs = analyze_mcq_performance(mc_analysis_file, printable_scores_file)
             st.session_state.sq_overall, st.session_state.sq_avg = analyze_sq_performance(sq_marks_file, target_class)
             
-            # Use Gemini to generate the comment instead of the hardcoded logic
+            # 3. Gemini Teacher Comment Generation
             st.session_state.teacher_comment = generate_gemini_teacher_comment(
                 st.session_state.mcq_avg, 
                 st.session_state.difficult_qs, 
@@ -245,12 +413,21 @@ with st.sidebar:
                 target_class,
                 gemini_api_key
             )
+            
+            # 4. Gemini Student Work Analysis (if provided)
+            if student_work_pdf is not None:
+                st.session_state.student_mistakes_report = analyze_student_mistakes_with_gemini(
+                    student_work_pdf, gemini_api_key
+                )
+            else:
+                st.session_state.student_mistakes_report = None
 
-# 3. Main Page Layout (Tabs)
-tab1, tab2, tab3, tab4 = st.tabs([
+# Main Page Layout (Tabs)
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Performance Dashboard", 
-    "📜 Curriculum Analysis", 
+    "📜 AI Curriculum Mapping", 
     "✨ AI Teacher's Comment", 
+    "🚨 Common Mistakes",
     "📚 Source Documents"
 ])
 
@@ -279,39 +456,11 @@ if st.session_state.report_generated:
             else:
                 st.info("SQ data unavailable. Please upload files.")
 
-    # --- Tab 2: Curriculum Analysis ---
+    # --- Tab 2: AI Curriculum Mapping ---
     with tab2:
-        st.header("Curriculum Coverage")
-        if st.session_state.detected_subtopics:
-            st.success("Analysis complete. Topics detected in the question paper are highlighted below.")
-            
-            def render_curriculum(db_section):
-                for key, value in db_section.items():
-                    if isinstance(value, dict) and 'keywords' not in value:
-                        st.markdown(f"### {key}")
-                        for sub_topic, sub_data in value.items():
-                            with st.expander(sub_topic):
-                                if isinstance(sub_data, dict) and 'keywords' not in sub_data:
-                                    for deepest_sub, deepest_data in sub_data.items():
-                                        _render_subtopic_item(deepest_sub, deepest_data)
-                                else:
-                                    _render_subtopic_item(sub_topic, sub_data)
-                    elif isinstance(value, dict) and 'keywords' in value:
-                        with st.expander(key):
-                            _render_subtopic_item(key, value)
-            
-            def _render_subtopic_item(name, data):
-                detected = name in st.session_state.detected_subtopics
-                if detected:
-                    st.markdown(f"✔️ **{name}**")
-                    for obj in st.session_state.detected_subtopics[name]:
-                        st.markdown(f"- *{obj}*")
-                else:
-                    st.markdown(f"{name}")
-
-            render_curriculum(HKDSE_BIO_CURRICULUM)
-        else:
-            st.info("Upload a Question Paper PDF and click 'Generate Report' to analyze curriculum coverage.")
+        st.header("Gemini Curriculum Coverage Analysis")
+        st.info("This breakdown is dynamically generated by Gemini reading the uploaded PDF against the HKDSE Biology curriculum.")
+        st.markdown(st.session_state.curriculum_report)
 
     # --- Tab 3: AI Teacher's Comment ---
     with tab3:
@@ -321,13 +470,23 @@ if st.session_state.report_generated:
         with st.expander("Copy Raw Text"):
             st.text_area("Teacher's Comment", st.session_state.teacher_comment, height=250, label_visibility="hidden")
 
-else:
-    for tab in [tab1, tab2, tab3]:
-        with tab:
-            st.info("👈 Please enter your Gemini API key, upload the required files in the sidebar, and click **Generate Report**.")
+    # --- Tab 4: Common Mistakes ---
+    with tab4:
+        st.header("Student Work Analysis: Common Mistakes & Misconceptions")
+        if st.session_state.student_mistakes_report:
+            st.markdown(st.session_state.student_mistakes_report)
+            with st.expander("Copy Raw Text"):
+                st.text_area("Mistakes Report", st.session_state.student_mistakes_report, height=250, label_visibility="hidden")
+        else:
+            st.info("No Student Work PDF was uploaded for analysis. Upload a file in the sidebar and re-run the report to see insights here.")
 
-# --- Tab 4: Source Documents ---
-with tab4:
+else:
+    for tab in [tab1, tab2, tab3, tab4]:
+        with tab:
+            st.info("👈 Please enter your **Gemini API key**, upload the required files in the sidebar, and click **Generate AI Report**.")
+
+# --- Tab 5: Source Documents ---
+with tab5:
     st.header("Document Viewer")
     doc_col1, doc_col2 = st.columns(2)
     
